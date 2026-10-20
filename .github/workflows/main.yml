@@ -1,0 +1,33 @@
+name: Deploy Vite
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  deploy:
+    if: ${{ vars.VITE_META_CONVERSIONS_ENDPOINT != '' }}
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm ci
+      - name: Build GitHub Pages site
+        run: npm run build
+        env:
+          VITE_META_CONVERSIONS_ENDPOINT: ${{ vars.VITE_META_CONVERSIONS_ENDPOINT }}
+      - uses: actions/configure-pages@v4
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: './dist'
+      - id: deployment
+        uses: actions/deploy-pages@v4

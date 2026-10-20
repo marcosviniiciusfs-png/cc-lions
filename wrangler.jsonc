@@ -1,0 +1,8 @@
+{
+  "name": "cc-lions",
+  "compatibility_date": "2026-08-05",
+  "pages_build_output_dir": "./dist",
+  "vars": {
+    "META_GRAPH_API_VERSION": "v25.0"
+  }
+}
