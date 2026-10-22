@@ -17,6 +17,13 @@ const Header = () => {
     <header className="fixed top-0 left-0 right-0 z-50 bg-primary shadow-md">
       <div className="container mx-auto px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
+          <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-full bg-white" aria-hidden="true">
+            <img
+              src="/cc-lions-logo.jpeg"
+              alt=""
+              className="absolute left-[-20%] top-[-10%] h-[140%] w-[140%] max-w-none object-contain"
+            />
+          </div>
           <span className="text-primary-foreground font-bold text-xl md:text-2xl">CC Lion's</span>
         </div>
 

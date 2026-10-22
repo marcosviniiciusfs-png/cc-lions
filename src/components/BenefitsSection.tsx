@@ -33,7 +33,7 @@ const BenefitsSection = () => {
                 <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center">
                   <Icon className="w-10 h-10 text-primary" />
                 </div>
-                <h3 className="text-xl font-bold text-primary">{benefit.title}</h3>
+                <h3 className="text-xl font-bold text-foreground">{benefit.title}</h3>
                 <p className="text-muted-foreground leading-relaxed">
                   {benefit.description}
                 </p>

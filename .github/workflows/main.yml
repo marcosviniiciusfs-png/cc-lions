@@ -1,6 +1,9 @@
 name: Deploy Vite
 
 on:
+  push:
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
@@ -10,7 +13,6 @@ permissions:
 
 jobs:
   deploy:
-    if: ${{ vars.VITE_META_CONVERSIONS_ENDPOINT != '' }}
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -25,6 +27,8 @@ jobs:
         run: npm run build
         env:
           VITE_META_CONVERSIONS_ENDPOINT: ${{ vars.VITE_META_CONVERSIONS_ENDPOINT }}
+      - name: Preserve client-side routes
+        run: cp dist/index.html dist/404.html
       - uses: actions/configure-pages@v4
       - uses: actions/upload-pages-artifact@v3
         with:

@@ -14,18 +14,18 @@ const HeroSection = ({ onSimulateClick }: HeroSectionProps) => {
   ];
 
   return (
-    <section className="py-16 md:py-24" style={{ backgroundColor: '#e7f3ff' }}>
+    <section className="bg-secondary py-16 md:py-24">
       <div className="container mx-auto px-4">
         <div className="grid md:grid-cols-2 gap-12 items-center">
           {/* Coluna Esquerda - Texto e CTA */}
           <div className="space-y-6">
             <div className="inline-block">
-              <p className="text-primary text-sm font-semibold uppercase tracking-wider mb-2">
+              <p className="text-foreground text-sm font-semibold uppercase tracking-wider mb-2">
                 + DE 1000 SIMULAÇÕES REALIZADAS
               </p>
             </div>
             
-            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold leading-tight text-primary">
+            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold leading-tight text-foreground">
               Simule agora o seu crédito ideal para conquistar o seu sonho
             </h1>
 

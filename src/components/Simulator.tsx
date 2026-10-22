@@ -39,8 +39,7 @@ interface ConversionEventPayload {
   pixelPayload: Record<string, string>;
 }
 
-const META_CONVERSIONS_ENDPOINT =
-  import.meta.env.VITE_META_CONVERSIONS_ENDPOINT || "/api/conversions";
+const META_CONVERSIONS_ENDPOINT = import.meta.env.VITE_META_CONVERSIONS_ENDPOINT;
 const LEAD_WEBHOOK_DESTINATIONS: LeadWebhookDestination[] = [];
 
 const removeAccents = (value: string) => value.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
@@ -97,6 +96,10 @@ const sendLeadToDestinations = (payload: Record<string, string>) => {
 };
 
 const sendConversionEvent = async (payload: ConversionEventPayload) => {
+  if (!META_CONVERSIONS_ENDPOINT) {
+    throw new Error("Endpoint de conversões não configurado.");
+  }
+
   console.log("Conversao registrada para envio", { eventId: payload.eventId });
 
   const response = await fetch(META_CONVERSIONS_ENDPOINT, {
@@ -198,6 +201,15 @@ const Simulator = () => {
 
   const handleFinish = async () => {
     if (isSubmitting) return;
+
+    if (!META_CONVERSIONS_ENDPOINT || LEAD_WEBHOOK_DESTINATIONS.length === 0) {
+      toast({
+        title: "Envio de simulações em configuração",
+        description: "A CC Lion's ainda está conectando o atendimento. Nenhum dado foi enviado.",
+        variant: "destructive",
+      });
+      return;
+    }
     
     setIsSubmitting(true);
     
@@ -256,20 +268,25 @@ const Simulator = () => {
     sessionStorage.setItem("cc_lions_pixel_payload", JSON.stringify(pixelPayload));
     sessionStorage.setItem("cc_lions_meta_event_id", metaEventId);
 
-    // Confirma o envio server-side antes de exibir a página de obrigado.
-    sendLeadToDestinations(leadPayload);
-
     try {
+      // Só exibe a página de obrigado depois de confirmar o envio server-side.
+      sendLeadToDestinations(leadPayload);
       await sendConversionEvent({
         eventId: metaEventId,
         eventSourceUrl: metaEventSourceUrl,
         leadPayload,
         pixelPayload,
       });
+      navigate("/obrigado", { state: { propertyType: creditType, pixelPayload, metaEventId } });
     } catch (error) {
       console.error("Erro ao enviar conversao para Meta CAPI:", error);
+      toast({
+        title: "Não foi possível enviar sua simulação",
+        description: "Tente novamente em instantes. Seus dados não foram confirmados.",
+        variant: "destructive",
+      });
     } finally {
-      navigate("/obrigado", { state: { propertyType: creditType, pixelPayload, metaEventId } });
+      setIsSubmitting(false);
     }
   };
 
@@ -326,7 +343,7 @@ const Simulator = () => {
                   onClick={() => setFormData({ ...formData, hasDownPayment: option, downPaymentAmount: option === "Não" ? "" : formData.downPaymentAmount })}
                   className={`p-4 rounded-lg border-2 transition-all ${
                     formData.hasDownPayment === option
-                      ? "border-primary bg-primary/10 text-primary font-semibold"
+                      ? "border-primary bg-primary/10 text-foreground font-semibold"
                       : "border-border hover:border-primary/50 bg-card"
                   }`}
                 >
@@ -421,19 +438,19 @@ const Simulator = () => {
       <div className="container mx-auto px-4">
         <div className="max-w-2xl mx-auto">
           <div className="text-center mb-8">
-            <p className="text-primary font-semibold text-sm uppercase tracking-wider mb-2">
+            <p className="text-foreground font-semibold text-sm uppercase tracking-wider mb-2">
               SIMULE AGORA
             </p>
-            <h2 className="text-3xl md:text-4xl font-bold text-primary mb-3">
+            <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-3">
               Responda as perguntas para fazer sua simulação
             </h2>
           </div>
 
-          <div className="bg-card rounded-2xl shadow-[0_4px_30px_rgba(12,76,199,0.12)] p-8 md:p-10">
+          <div className="bg-card rounded-2xl shadow-[0_4px_30px_rgba(153,105,18,0.12)] p-8 md:p-10">
             {/* Barra de Progresso */}
             <div className="mb-8">
               <div className="flex justify-between items-center mb-2">
-                <span className="text-sm font-semibold text-primary">{Math.round(progress)}%</span>
+                <span className="text-sm font-semibold text-foreground">{Math.round(progress)}%</span>
               </div>
               <Progress value={progress} className="h-2" />
             </div>
