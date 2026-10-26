@@ -324,11 +324,11 @@
               <legend class="field full">Qual seu nome e WhatsApp para contato?</legend>
               <div class="field">
                 <label for="name">Seu nome</label>
-                <input id="name" name="name" autocomplete="name" placeholder="Como podemos chamar você?" required />
+                <input id="name" name="name" autocomplete="name" maxlength="160" placeholder="Como podemos chamar você?" required />
               </div>
               <div class="field">
                 <label for="phone">WhatsApp</label>
-                <input id="phone" name="phone" type="tel" autocomplete="tel" placeholder="(00) 00000-0000" required />
+                <input id="phone" name="phone" type="tel" autocomplete="tel" pattern="(?:\+?55\s?)?\(?[0-9]{2}\)?\s?9?[0-9]{4}-?[0-9]{4}" title="Digite um WhatsApp válido com DDD." placeholder="(00) 00000-0000" required />
               </div>
             </fieldset>
             <div class="form-bottom">
@@ -503,6 +503,8 @@
           bem,
           tipo_de_credito: labels.service,
           valor_credito: creditRange,
+          tem_entrada: isConsortium && data.get('hasDownPayment') === 'sim' ? 'Sim' : 'Não',
+          valor_entrada: isConsortium && data.get('hasDownPayment') === 'sim' ? String(data.get('entryAmount') || '') : '',
           entrada: data.get('hasDownPayment') === 'sim' ? `R$ ${data.get('entryAmount')}` : 'Não',
           parcela: monthlyRange,
           observacao: String(data.get('realEstateNote') || '').trim()
@@ -516,27 +518,35 @@
           lines.push(`O que procura: ${data.get('realEstateNote')}`);
         }
         const whatsappUrl = `https://wa.me/5531987600474?text=${encodeURIComponent(lines.join('\n'))}`;
-        window.fbq?.('track', 'Lead', pixelPayload, { eventID: eventId });
         const conversionRequest = fetch(META_CAPI_URL, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ eventId, eventSourceUrl: window.location.href, leadPayload, pixelPayload }),
           keepalive: true
-        }).then((response) => {
-          if (!response.ok) throw new Error(`Conversions API HTTP ${response.status}`);
-          return response.json();
         });
         const submitButton = form.querySelector('button[type="submit"]');
         if (submitButton) submitButton.disabled = true;
         const confirmation = document.getElementById('confirmation');
-        confirmation.textContent = 'Solicitação pronta. Estamos abrindo o WhatsApp para você concluir o envio.';
+        confirmation.textContent = 'Registrando seu atendimento...';
         confirmation.hidden = false;
         try {
-          await Promise.race([conversionRequest, new Promise((resolve) => setTimeout(resolve, 1000))]);
+          const response = await conversionRequest;
+          const result = await response.json();
+          if (!response.ok || !result.leadStored) throw new Error('Lead não foi salvo no banco.');
+          window.fbq?.('track', 'Lead', pixelPayload, { eventID: eventId });
+          confirmation.textContent = 'Atendimento registrado. Estamos abrindo o WhatsApp para você concluir o envio.';
+          window.location.href = whatsappUrl;
         } catch (error) {
-          console.error('Não foi possível confirmar o evento na Meta CAPI.', error);
+          console.error('Não foi possível registrar o lead.', error);
+          confirmation.textContent = 'Não conseguimos registrar agora. Tente enviar novamente ou fale com a equipe pelo WhatsApp: ';
+          const whatsappLink = document.createElement('a');
+          whatsappLink.href = whatsappUrl;
+          whatsappLink.target = '_blank';
+          whatsappLink.rel = 'noopener noreferrer';
+          whatsappLink.textContent = 'abrir conversa';
+          confirmation.append(whatsappLink);
+          if (submitButton) submitButton.disabled = false;
         }
-        window.location.href = whatsappUrl;
       });
     </script>
   </body>

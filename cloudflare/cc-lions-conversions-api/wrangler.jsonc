@@ -1,15 +1,23 @@
 {
-  "$schema": "https://developers.cloudflare.com/workers/wrangler/config-schema.json",
-  "name": "cc-lions-conversions-api",
-  "main": "src/index.ts",
-  "compatibility_date": "2026-10-26",
-  "workers_dev": true,
-  "vars": {
-    "META_PIXEL_ID": "1392365026017528",
-    "META_GRAPH_API_VERSION": "v25.0",
-    "ALLOWED_ORIGINS": "https://cclions.simulead.com.br,http://localhost:5173,http://127.0.0.1:5173"
-  },
-  "observability": {
-    "enabled": true
-  }
+	"$schema": "https://developers.cloudflare.com/workers/wrangler/config-schema.json",
+	"name": "cc-lions-conversions-api",
+	"main": "src/index.ts",
+	"compatibility_date": "2026-10-26",
+	"workers_dev": true,
+	"vars": {
+		"META_PIXEL_ID": "1392365026017528",
+		"META_GRAPH_API_VERSION": "v25.0",
+		"ALLOWED_ORIGINS": "https://cclions.simulead.com.br,http://localhost:5173,http://127.0.0.1:5173"
+	},
+	"observability": {
+		"enabled": true
+	},
+	"d1_databases": [
+		{
+			"binding": "LEADS_DB",
+			"database_name": "cc-lions-leads",
+			"database_id": "5ca3f5e3-7dca-400e-aae6-a9eb71f766c7",
+			"migrations_dir": "migrations"
+		}
+	]
 }
