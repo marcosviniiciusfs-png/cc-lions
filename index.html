@@ -470,7 +470,10 @@
       updateService();
       updateEntry();
 
-      form.addEventListener('submit', (event) => {
+      const META_CAPI_URL = 'https://cc-lions-conversions-api.marcosviniicius-fs.workers.dev/events';
+      const createEventId = () => `cc-lions-lead-${crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`}`;
+
+      form.addEventListener('submit', async (event) => {
         event.preventDefault();
         if (!form.reportValidity()) return;
         const data = new FormData(form);
@@ -481,7 +484,30 @@
           creditAmount: { 'ate-50-mil': 'Até R$ 50 mil', '50-a-100-mil': 'De R$ 50 mil a R$ 100 mil', '100-a-200-mil': 'De R$ 100 mil a R$ 200 mil', '200-a-500-mil': 'De R$ 200 mil a R$ 500 mil', 'acima-500-mil': 'Acima de R$ 500 mil' },
           monthlyAmount: { 'ate-500': 'Até R$ 500', '500-a-1000': 'De R$ 500 a R$ 1.000', '1000-a-2000': 'De R$ 1.000 a R$ 2.000', '2000-a-4000': 'De R$ 2.000 a R$ 4.000', 'acima-4000': 'Acima de R$ 4.000' }
         };
-        const lines = ["Olá! Vim pelo site da CC Lion's.", '', `Atendimento: ${labels.service}`, `Nome: ${data.get('name')}`, `WhatsApp: ${data.get('phone')}`];
+        const eventId = createEventId();
+        const phone = String(data.get('phone') || '');
+        const bem = isConsortium ? labels.category[data.get('category')] : 'Imobiliária';
+        const creditRange = isConsortium ? labels.creditAmount[data.get('creditAmount')] : '';
+        const monthlyRange = isConsortium ? labels.monthlyAmount[data.get('monthlyAmount')] : '';
+        const pixelPayload = {
+          content_category: labels.service,
+          content_name: bem,
+          tipo_de_atendimento: labels.service,
+          tipo_de_bem: bem,
+          faixa_de_credito: creditRange,
+          faixa_de_parcela: monthlyRange
+        };
+        const leadPayload = {
+          nome_completo: String(data.get('name') || '').trim(),
+          telefone: phone.replace(/\D/g, ''),
+          bem,
+          tipo_de_credito: labels.service,
+          valor_credito: creditRange,
+          entrada: data.get('hasDownPayment') === 'sim' ? `R$ ${data.get('entryAmount')}` : 'Não',
+          parcela: monthlyRange,
+          observacao: String(data.get('realEstateNote') || '').trim()
+        };
+        const lines = ["Olá! Vim pelo site da CC Lion's.", '', `Atendimento: ${labels.service}`, `Nome: ${data.get('name')}`, `WhatsApp: ${phone}`];
         if (isConsortium) {
           lines.push(`Bem: ${labels.category[data.get('category')]}`, `Faixa de crédito: ${labels.creditAmount[data.get('creditAmount')]}`, `Tem entrada: ${data.get('hasDownPayment') === 'sim' ? 'Sim' : 'Não'}`);
           if (data.get('hasDownPayment') === 'sim') lines.push(`Valor de entrada: R$ ${data.get('entryAmount')}`);
@@ -489,7 +515,28 @@
         } else if (data.get('realEstateNote')) {
           lines.push(`O que procura: ${data.get('realEstateNote')}`);
         }
-        window.location.href = `https://wa.me/5531987600474?text=${encodeURIComponent(lines.join('\n'))}`;
+        const whatsappUrl = `https://wa.me/5531987600474?text=${encodeURIComponent(lines.join('\n'))}`;
+        window.fbq?.('track', 'Lead', pixelPayload, { eventID: eventId });
+        const conversionRequest = fetch(META_CAPI_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ eventId, eventSourceUrl: window.location.href, leadPayload, pixelPayload }),
+          keepalive: true
+        }).then((response) => {
+          if (!response.ok) throw new Error(`Conversions API HTTP ${response.status}`);
+          return response.json();
+        });
+        const submitButton = form.querySelector('button[type="submit"]');
+        if (submitButton) submitButton.disabled = true;
+        const confirmation = document.getElementById('confirmation');
+        confirmation.textContent = 'Solicitação pronta. Estamos abrindo o WhatsApp para você concluir o envio.';
+        confirmation.hidden = false;
+        try {
+          await Promise.race([conversionRequest, new Promise((resolve) => setTimeout(resolve, 1000))]);
+        } catch (error) {
+          console.error('Não foi possível confirmar o evento na Meta CAPI.', error);
+        }
+        window.location.href = whatsappUrl;
       });
     </script>
   </body>

@@ -1,0 +1,15 @@
+{
+  "$schema": "https://developers.cloudflare.com/workers/wrangler/config-schema.json",
+  "name": "cc-lions-conversions-api",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-26",
+  "workers_dev": true,
+  "vars": {
+    "META_PIXEL_ID": "1392365026017528",
+    "META_GRAPH_API_VERSION": "v25.0",
+    "ALLOWED_ORIGINS": "https://cclions.simulead.com.br,http://localhost:5173,http://127.0.0.1:5173"
+  },
+  "observability": {
+    "enabled": true
+  }
+}
