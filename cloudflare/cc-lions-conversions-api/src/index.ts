@@ -5,12 +5,14 @@ interface WorkerEnv {
   META_GRAPH_API_VERSION?: string;
   META_PIXEL_ID?: string;
   ALLOWED_ORIGINS?: string;
+  LEAD_DESTINATION_WEBHOOK_URL?: string;
   LEADS_DB?: D1Database;
 }
 
 interface D1Result {
   success: boolean;
   meta?: { changes?: number };
+  changes?: number;
 }
 
 interface D1Statement {
@@ -170,6 +172,7 @@ export default {
       return json({ ok: false, error: "lead_database_unavailable" }, 503, origin);
     }
 
+    let wasInserted = false;
     try {
       const insert = await env.LEADS_DB.prepare(
         `INSERT OR IGNORE INTO leads (
@@ -192,10 +195,51 @@ export default {
         .run();
 
       if (!insert.success) throw new Error("D1 insert failed");
+      wasInserted = (insert.meta?.changes ?? insert.changes ?? 0) > 0;
     } catch {
       console.error("CC Lion's lead could not be stored", { eventId });
       return json({ ok: false, error: "lead_persistence_failed" }, 503, origin);
     }
+
+    const crmTask = wasInserted
+      ? sendLeadToCrm(env.LEAD_DESTINATION_WEBHOOK_URL, {
+          event_name: "Lead",
+          event_id: eventId,
+          event_source_url: payload.eventSourceUrl,
+          received_at: new Date().toISOString(),
+          lead_id: eventId,
+          origin: "simulador_cc_lions",
+          name: fullName,
+          phone,
+          interest: serviceType,
+          service_type: serviceType,
+          asset_type: assetType,
+          credit_range: creditRange,
+          has_entry: hasEntry,
+          entry_amount: hasEntry ? entryAmount : "",
+          monthly_range: monthlyRange,
+          notes,
+          lead_data: {
+            nome_completo: fullName,
+            whatsapp: phone,
+            tipo_de_credito: serviceType,
+            bem: assetType,
+            valor_credito: creditRange,
+            tem_entrada: hasEntry ? "Sim" : "Não",
+            valor_entrada: hasEntry ? entryAmount : "",
+            parcela: monthlyRange,
+            observacao: notes,
+          },
+          user_data: { name: fullName, phone },
+        })
+          .then(async (delivered) => {
+            await updateCrmStatus(env.LEADS_DB!, eventId, delivered ? "sent" : "failed");
+          })
+          .catch(async () => {
+            console.error("CC Lion's CRM webhook request failed", { eventId });
+            await updateCrmStatus(env.LEADS_DB!, eventId, "failed");
+          })
+      : Promise.resolve();
 
     const conversionTask = sendConversion({
         request,
@@ -220,7 +264,7 @@ export default {
         await updateMetaStatus(env.LEADS_DB!, eventId, "failed");
       });
 
-    context.waitUntil(conversionTask);
+    context.waitUntil(Promise.all([conversionTask, crmTask]));
 
     return json({ ok: true, leadStored: true }, 202, origin);
   },
@@ -238,5 +282,51 @@ const updateMetaStatus = async (
       .run();
   } catch {
     console.error("CC Lion's lead Meta status could not be updated", { eventId });
+  }
+};
+
+const sendLeadToCrm = async (
+  webhookUrl: string | undefined,
+  payload: Record<string, unknown>,
+) => {
+  if (!webhookUrl) {
+    console.error("CC Lion's CRM webhook secret is not configured", {
+      eventId: payload.event_id,
+    });
+    return false;
+  }
+
+  try {
+    const response = await fetch(webhookUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Accept": "application/json" },
+      body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!response.ok) {
+      console.error("CC Lion's CRM webhook request failed", {
+        eventId: payload.event_id,
+        status: response.status,
+      });
+    }
+    return response.ok;
+  } catch {
+    console.error("CC Lion's CRM webhook request failed", { eventId: payload.event_id });
+    return false;
+  }
+};
+
+const updateCrmStatus = async (
+  database: D1Database,
+  eventId: string,
+  status: "sent" | "failed",
+) => {
+  try {
+    await database
+      .prepare("UPDATE leads SET crm_status = ? WHERE event_id = ?")
+      .bind(status, eventId)
+      .run();
+  } catch {
+    console.error("CC Lion's lead CRM status could not be updated", { eventId });
   }
 };
